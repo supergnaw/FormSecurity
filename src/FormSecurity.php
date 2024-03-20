@@ -102,7 +102,7 @@ class FormSecurity
             return false;
         }
 
-        // clear valid token _depricated_data to prevent reuse
+        // clear valid token data to prevent reuse
         if (true !== $persistant) {
             unset($_SESSION['form_security']['tokens'][$tokenName]);
             unset($_POST[$tokenName]);
@@ -164,18 +164,8 @@ class FormSecurity
         return $input;
     }
 
-    public static function filter_get(array $types): array
-    {
-        return (empty($_GET)) ? [] : self::filter_input('get', $types);
-    }
-
-    public static function filter_post(array $types): array
-    {
-        return (empty($_POST)) ? [] : self::filter_input('post', $types);
-    }
-
     /**
-     * Filter an input based on expected _depricated_data types
+     * Filter an input based on expected data types
      *
      * @param string $input
      *      must be: get, post, cookie, server, env
@@ -231,7 +221,7 @@ class FormSecurity
      * @param $b
      * @return mixed
      */
-    public static function filter_boolean($b)
+    public static function filter_boolean($b): bool | null
     {
         return filter_var($b, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
     }
@@ -242,7 +232,7 @@ class FormSecurity
      * @param $f
      * @return mixed
      */
-    public static function filter_float($f)
+    public static function filter_float($f): float | null
     {
         $f = filter_var($f, FILTER_VALIDATE_FLOAT, FILTER_FLAG_ALLOW_THOUSAND | FILTER_NULL_ON_FAILURE);
         if (!empty($f)) {
@@ -257,7 +247,7 @@ class FormSecurity
      * @param $i
      * @return mixed
      */
-    public static function filter_int($i)
+    public static function filter_int($i): int | null
     {
         $i = filter_var($i, FILTER_VALIDATE_FLOAT, FILTER_FLAG_ALLOW_THOUSAND | FILTER_NULL_ON_FAILURE);
         if (!empty($i)) {
@@ -272,7 +262,7 @@ class FormSecurity
      * @param $h
      * @return mixed
      */
-    public static function filter_hexint($h)
+    public static function filter_hexint($h): string | null
     {
         return filter_var($h, FILTER_VALIDATE_INT, FILTER_FLAG_ALLOW_HEX | FILTER_NULL_ON_FAILURE);
     }
