@@ -1,13 +1,12 @@
 {
-    "name": "supergnaw/form-security",
-    "description": "Class for simplifying webpage form security",
-    "type": "library",
-    "license": "AGPL-3.0",
-    "autoload": {
-        "psr-4": {
-            "Supergnaw\\FormSecurity\\": "src/"
-        }
-    },
-    "minimum-stability": "stable",
-    "require": {}
+  "name": "supergnaw/form-security",
+  "description": "Class for simplifying webpage form security",
+  "type": "library",
+  "license": "AGPL-3.0",
+  "autoload": {
+    "psr-4": {
+      "Supergnaw\\FormSecurity\\": "src/"
+    }
+  },
+  "require": {}
 }
