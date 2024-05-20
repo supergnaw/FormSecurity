@@ -8,7 +8,7 @@ use DateTime;
 
 class FormSecurity
 {
-    const SANITYPES = [
+    public const SANITYPES = [
         // Booleans
         'bool' => ['options' => 'Supergnaw\FormSecurity\FormSecurity::filter_boolean'],
         // Numbers
@@ -167,7 +167,7 @@ class FormSecurity
      * Filter an input based on expected data types
      *
      * @param string $input
-     *      must be: get, post, cookie, server, env
+     *      must be: post, get, cookie, env, server
      * @param array $types
      *      can be: bool, float, hexint, int, octint, ipv4, ipv6, mac, date, time,
      *              timestamp, string, alnum, url, email, htmlenc
@@ -179,29 +179,33 @@ class FormSecurity
         $input = strtolower(trim($input));
         $filtered = [];
         $inputs = [
-            'get' => INPUT_GET,
             'post' => INPUT_POST,
+            'get' => INPUT_GET,
             'cookie' => INPUT_COOKIE,
-            'server' => INPUT_SERVER,
-            'env' => INPUT_ENV
+            'env' => INPUT_ENV,
+            'server' => INPUT_SERVER /*,
+            'session' => INPUT_SESSION, (not implemented yet)
+            'request' => INPUT_REQUEST (not implemented yet)*/
         ];
 
         // Return empty results
-        if ('get' === $input && empty($_GET)) return $filtered;
         if ('post' === $input && empty($_POST)) return $filtered;
+        if ('get' === $input && empty($_GET)) return $filtered;
         if ('cookie' === $input && empty($_COOKIE)) return $filtered;
-        if ('server' === $input && empty($_SERVER)) return $filtered;
         if ('env' === $input && empty($_ENV)) return $filtered;
+        if ('server' === $input && empty($_SERVER)) return $filtered;
+        /* https://www.php.net/manual/en/filter.constants.php (not implemented yet)
+        if ('session' === $input && empty($_SESSION)) return $filtered;
+        if ('request' === $input && empty($_REQUEST)) return $filtered;*/
 
         // Verify input type
-        if (!array_key_exists($input, $inputs)) return $filtered; else {
-            $input = $inputs[$input];
-        }
+        if (!array_key_exists($input, $inputs)) return $filtered;
+        $input = $inputs[$input];
 
         // Loop through type-assigned variables to find expected type
         foreach ($types as $var => $type) {
             // Find expected variable type based on $types
-            $options = (array_key_exists($type, SANITYPES)) ? SANITYPES[$type] : "none";
+            $options = (array_key_exists($type, FormSecurity::SANITYPES)) ? FormSecurity::SANITYPES[$type] : "none";
 
             $filtered[$var] = ('none' !== $options)
                 // Use class built-in filtering function
