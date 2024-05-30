@@ -326,9 +326,9 @@ class FormSecurity
         return filter_var(trim($m), FILTER_VALIDATE_REGEXP, $options);
     }
 
-    public static function filter_string(string $s): string
+    public static function filter_string(string $s): string | null
     {
-        return trim($s);
+        return (trim($s)) ? trim($s) : null;
     }
 
     public static function filter_alnum(string $a): string | null
