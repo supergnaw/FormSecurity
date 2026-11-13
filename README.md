@@ -1,157 +1,125 @@
 # FormSecurity
 
-PHP class for simplifying webpage form security. The main purpose for the creation of this class was to help mitigate
-against [CSRF](https://en.wikipedia.org/wiki/Cross-site_request_forgery). The class can validate the following types of
-inputs:
+## Overview
 
-* boolean
-* numeric
-    * float
-    * integer
-    * hexadecimal integer
-    * octal integer
-* network
-    * ipv4
-    * ipv6
-    * mac address
-* timestamp
-    * date
-    * time
-    * timestamp
-* string
-    * alphanumeric
-    * hexadecimal
-    * email
-    * encoded html
-    * url
-    * string
+FormSecurity is a lightweight PHP security toolkit focused on form handling, request validation, file uploads, 
+and CSRF protection.
 
-## Token
+Features include:
 
-### Form Tokens
+- CSRF token generation and validation
+- Input sanitization for $_GET, $_POST, $_COOKIE, $_SERVER, and $_ENV
+- Individual value filtering and validation helpers
+- Secure file upload processing
+- Array whitelisting and blacklisting utilities
 
-FormSecurity can generate nonce tokens to be used to verify a form can only be submitted once. To use the token, simply
-generate a token, add it to a hidden form input, then validate the submitted token against the one saved in the session
-variable.
+Originally created as a simple [CSRF](https://en.wikipedia.org/wiki/Cross-site_request_forgery) helper in 2021,
+FormSecurity has evolved into a collection of reusable security utilities used across multiple projects.
 
-#### Generate the token
+### Granular Usage
 
-```php
-$exampleToken = FormSecurity::token_generate('example');
+This package was designed with flexibility in mind. As such, all functions are static, and you can use most internal 
+methods to sanitize and filter as you wish. See the [API documentation](/docs/api-reference.md) for detailed usage for
+every method.
+
+## Quick Start
+
+Make sure to update your composer installation:
+
+```shell
+composer require supergnaw/form-security
 ```
 
-#### Store the generated token in a form hidden input
-
-```html
-
-<form>
-    <input type="hidden" name="token_name" value="<?php echo $exampleToken; ?>">
-</form>
-```
-
-#### Validate the submitted token
+Then include the `use` statement and filter to your heart's content:
 
 ```php
-if (FormSecurity::token_verify("token_name")) {
-    echo "security token is valid!";
-} else {
-    echo "security token is invalid!";
+use Supergnaw\FormSecurity;
+
+$filter = [
+    'email' => 'email',
+    'age'   => 'int',
+];
+
+$data = FormSecurity::sanitizePost($filter);
+
+if (empty($data)) {
+    die('Invalid input');
 }
 ```
 
-#### Clearing All Tokens
+----
 
-If for whatever reason you need to clear any saved tokens, use `token_clear_all()`.
+## Why FormSecurity?
 
-```php
-FormSecurity::token_clear_all();
-```
+PHP provides many built-in functions for filtering input, processing file uploads, and managing CSRF protection.
+FormSecurity provides a consistent, reusable interface for these common security-related tasks while remaining 
+framework-agnostic and dependency free to make it easy to include in any project.
 
-## Whitelist & Blacklist
+### Philosophy
 
-FormSecurity can apply a whitelist or blacklist to a given input and filter out unwanted or unexpected inputs.
+FormSecurity focuses on:
 
-```php
-$input = [
-    "var1" => 1,
-    "var2" => 2,
-    "var3" => 3
-];
+- No framework dependencies
+- Simple static methods
+- Secure defaults
+- Reusable components
+- Incremental adoption
 
-$whitelist = ["var1", "var2"];
-$output = FilterSecurity::apply_whitelist($whitelist, $input);
-// $output = [1, 2]
+----
+## Features
 
-$blacklist = ["var1", "var3"];
-$output = FilterSecurity::apply_blacklist($blacklist, $input);
-// $output = [2]
-```
+### [Global Input Sanitization](/docs/input-sanitization.md)
 
-## Filter
+Sanitize and validate data from:
 
-FormSecurity can filter the values of a given input (`get`, `post`, `cookie`, `server`, or `env`) and remove any values
-that do not match their expected type (`bool`, `float`, `hexint`, `int`, `octint`, `ipv4`, `ipv6`, `mac`, `date`, `time`
-, `timestamp`, `string`, `alnum`, `url`, `email`, or `htmlenc`).
+- `$_GET`
+- `$_POST`
+- `$_COOKIE`
+- `$_SERVER`
+- `$_ENV`
 
-```php
-$filter = [
-    "foo" => "int",
-    "bar" => "string",
-];
+Supports built-in filters for:
 
-$_GET = [
-    "foo" => "1",
-    "bar" => "2"
-]
-$get = FormSecurity::filter_input(input: "get", types: $filter);
-// $get = ["2"]
-
-$_POST = [
-    "foo" => 1,
-    "bar" => 2
-];
-$post = FormSecurity::filter_input(input: "post", types: $filter);
-// $post = [1]
-```
-### Granular Filtering
-
-FormSecurity filters can also be used individually to validate individual inputs, where `null` will be returned on any
-failure.
-
-* `FormSecurity::filter_boolean()`
-* `FormSecurity::filter_float()`
-* `FormSecurity::filter_int()`
-* `FormSecurity::filter_hexint()`
-* `FormSecurity::filter_octint()`
-* `FormSecurity::filter_ipv4()`
-* `FormSecurity::filter_ipv6()`
-* `FormSecurity::filter_mac()`
-* `FormSecurity::filter_string()`
-* `FormSecurity::filter_alnum()`
-* `FormSecurity::filter_hex()`
-* `FormSecurity::filter_url()`
-* `FormSecurity::filter_email()`
-* `FormSecurity::filter_htmlenc()`
-* `FormSecurity::filter_date()`
-* `FormSecurity::filter_time()`
-* `FormSecurity::filter_timestamp()`
-
-## String Cleaning
-
-FormSecurity can clean strings
-
-### Allow only alphabetical characters
+- Booleans
+- Integers and floats
+- Email addresses
+- URLs
+- IPv4 / IPv6 addresses
+- MAC addresses
+- Dates and timestamps
+- Alphanumeric strings
 
 ```php
-$input = "Hell0 w0rld!";
-$output = FormSecurity::clean_to_alpha($input);
-// $output = "Hellwrld"
+$post = FormSecurity::sanitizePost(['username' => 'string', 'password' => 'string'])
 ```
 
-### Allow only alphanumeric characters
+---
+
+### [CSRF Protection](/docs/csrf-protection.md)
+
+Generate, validate, and manage CSRF tokens with minimal setup.
 
 ```php
-$input = "Hell0 w0rld!";
-$output = FormSecurity::clean_to_alnum($input);
-// $output = "Hell0w0rld"
+$token = FormSecurity::csrfTokenGenerate('login_form');
 ```
+
+### [File Upload Security](/docs/file-uploads.md)
+
+Safely process uploaded files by:
+
+- Verifying MIME types
+- Verifying file extensions
+- Moving files securely
+- Normalizing complex multi-file uploads
+
+```php
+$file = FormSecurity::processFileUpload($_FILES['file_upload'], './upload/dir');
+```
+
+### [Array Schena Helpers](/docs/array-helpers.md)
+
+Convenience methods for:
+
+- Whitelisting keys
+- Blacklisting keys
+- Filtering data structures
