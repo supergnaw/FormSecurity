@@ -69,6 +69,57 @@ trait FileUploadTrait
         ],
     ];
 
+    // Sanitize file input with optional safe move
+    public static function sanitizeFiles(array $fileFilter, bool $safeMove = false, ?array $allowedMap = null): array
+    {
+        $output = [];
+
+        // loop through $_FILES
+        foreach ($fileFilter as $inputName => $dir) {
+            if (!array_key_exists($inputName, $_FILES)) continue;
+
+            $normalized = self::normalizeFilesArray($_FILES[$inputName]);
+
+            if (array_key_exists('name', $normalized)) {
+                // this is a flat array with a single file
+                if (!self::allowedFile($normalized)) continue; // this file is not allowed
+
+                $output[$inputName] = $normalized;
+            } else {
+                // this is a multi-file upload
+                $output[$inputName] = [];
+                foreach ($normalized as $n => $file) {
+                    if (!self::allowedFile($file)) {
+                        // this file is not allowed
+                        continue;
+                    }
+
+                    $output[$inputName][$n] = $file;
+                }
+            }
+        }
+
+        // no moving upload files
+        if (!$safeMove) {
+            ksort($output);
+            return $output;
+        }
+
+        // perform a safe file move
+        foreach ($output as $key => $file) {
+            if (array_key_exists("name", $output[$key])) {
+                $output[$key]["safe_filename"] = self::safeUploadMove($output[$key], $fileFilter[$key]);
+            } else {
+                foreach ($file as $k => $f) {
+                    $output[$key][$k]["safe_filename"] = self::safeUploadMove($output[$key][$k], $fileFilter[$key]);
+                }
+            }
+            ksort($output[$key]);
+        }
+
+        return $output;
+    }
+
     // Normalizes a multi-file upload array.
     public static function normalizeFilesArray(array $fileUploads): array
     {
@@ -76,6 +127,8 @@ trait FileUploadTrait
         if (!is_array($fileUploads["name"])) {
             $fileUploads["error_message"] = self::getUploadErrorMessage($fileUploads["error"]);
             $fileUploads["ext"] = strtolower(pathinfo($fileUploads["name"], PATHINFO_EXTENSION));
+            $fileUploads["sha256"] = hash_file('sha256', $fileUploads["tmp_name"]);
+            ksort($fileUploads);
             return $fileUploads;
         }
 
@@ -91,8 +144,12 @@ trait FileUploadTrait
                 if ("name" === $key) {
                     $normalized[$i]["ext"] = strtolower(pathinfo($fileUploads["name"][$i], PATHINFO_EXTENSION));
                 }
+                if ("tmp_name" === $key) {
+                    $normalized[$i]["sha256"] = hash_file('sha256', $fileUploads["tmp_name"][$i]);
+                }
                 $normalized[$i][$key] = $fileUploads[$key][$i];
             }
+            ksort($normalized[$i]);
         }
 
         return $normalized;
@@ -115,13 +172,13 @@ trait FileUploadTrait
     }
 
     // Checks if a file upload is allowed based on a combination of MIME type and file extension.
-    public static function allowedFile(array $fileUpload, ?array $extension2Mime = null): bool
+    public static function allowedFile(array $fileUpload, ?array $allowedMap = null): bool
     {
         // default fallback
-        $allowedMap = (!$extension2Mime) ? self::$allowedMap : $extension2Mime;
+        $allowedMap = (!$allowedMap) ? self::$allowedMap : $allowedMap;
 
         // extension allowed?
-        $ext = strtolower(pathinfo($fileUpload["tmp_name"], PATHINFO_EXTENSION));
+        $ext = strtolower(pathinfo($fileUpload["name"], PATHINFO_EXTENSION));
 
         if (!array_key_exists($ext, $allowedMap)) {
             throw new Exception("File extension not allowed.");
@@ -130,47 +187,92 @@ trait FileUploadTrait
         // thanks to whomever made the Fileinfo extension to check real MIME types
         $finfo = new finfo(FILEINFO_MIME_TYPE);
 
-        $mime = $finfo->file($fileUpload["name"]);
+        $mime = $finfo->file($fileUpload["tmp_name"]);
 
         if (!in_array($mime, self::$allowedMap[$ext])) {
             throw new Exception("MIME type not allowed: {$mime}");
         }
 
         // extension and MIME type match?
-        return in_array($mime === $allowedMap[$ext], true);
+        return in_array($mime, $allowedMap[$ext]);
     }
 
-    // Safely moves file from temp directory to upload directory.
-    public static function uploadSafeMove(array $fileUpload, string $uploadDir): ?string
+    // Safely moves a temp file to upload directory.
+    public static function safeUploadMove(array $fileUpload, string $uploadDir): ?string
     {
-        $ext = strtolower(pathinfo($fileUpload["tmp_name"], PATHINFO_EXTENSION));
+        if (!$fileUpload) return "error: input array missing keys 'tmp_name', 'sha256'";
 
-        $tmpPath = pathinfo($fileUpload["tmp_name"], PATHINFO_DIRNAME);
+        // upload file is missing???
+        if (!file_exists($fileUpload["tmp_name"])) return "error: upload file missing";
 
+        // make the dir if it does not exist
+        if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+
+        // check for duplicates
+        $duplicate = self::checkUploadDuplicate($fileUpload["sha256"], $uploadDir);
+        if ($duplicate) return $duplicate;
+
+        // get the file extension
+        $ext = strtolower(pathinfo($fileUpload["name"], PATHINFO_EXTENSION));
+
+        // create a randomly generated filename for security
         $safeFilename = bin2hex(random_bytes(16)) . '.' . $ext;
 
-        $fullUploadPath = $tmpPath . '/' . $safeFilename;
+        // generate the full filepath
+        $fullUploadPath = $uploadDir . '/' . $safeFilename;
 
-        return (move_uploaded_file($tmpPath, $fullUploadPath)) ? $fullUploadPath : null;
+        // move and return filepath on success or null on failure
+        return (move_uploaded_file($fileUpload["tmp_name"], $fullUploadPath))
+            ? $fullUploadPath : "error: an unkown error occurred using move_uploaded_file()";
+    }
+
+    // Moves temp file in an "unsafe" way
+    public static function unsafeUploadMove(string $tempFile, string $destFile, string $uploadDir): ?string
+    {
+        if (!file_exists($tempFile)) return "error: upload file is missing";
+
+        if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+
+        $fullUploadPath = $uploadDir . '/' . $destFile;
+
+        return (move_uploaded_file($tempFile, $fullUploadPath))
+            ? $fullUploadPath : "error: an unknown error occurred using move_uploaded_file()";
+    }
+
+    // Checks to see if an upload file already exists in the target directory
+    private static function checkUploadDuplicate(string $uploadHash, string $uploadDir): bool|string
+    {
+        foreach (array_diff(scandir($uploadDir), ['.', '..']) as $file) {
+            $existingFile = $uploadDir . "/$file";
+
+            // ignore directories
+            if (!is_file($existingFile)) continue;
+
+            // check for matching hash and return filename if so
+            if (hash_file('sha256', $existingFile) === $uploadHash) return $existingFile;
+        }
+
+        // no duplicates so unique file confirmed
+        return false;
     }
 
     // Processes file form upload to safely being saved.
     public static function processFileUpload(
         array  $fileUpload,
         string $uploadDir,
-        ?array $extension2Mime = null
+        ?array $allowedMap = null
     ): string
     {
         // ensure the upload completed without errors
-        if (!$_FILES["file"]["error"] === UPLOAD_ERR_OK) {
+        if (!$fileUpload["error"] === UPLOAD_ERR_OK) {
             throw new Exception(self::getUploadErrorMessage($fileUpload["error"]));
         }
 
-        if (!self::allowedFile($fileUpload, $extension2Mime)) {
+        if (!self::allowedFile($fileUpload, $allowedMap)) {
             throw new Exception("File MIME type and extension mismatch.");
         }
 
-        $fullUploadPath = self::uploadSafeMove($fileUpload, $uploadDir);
+        $fullUploadPath = self::safeUploadMove($fileUpload, $uploadDir);
 
         if (!$fullUploadPath) throw new Exception("Error uploading file.");
 

@@ -10,10 +10,10 @@ trait FilterBoolTrait
     /**
      * Filter a boolean
      *
-     * @param $b
+     * @param mixed $b
      * @return mixed
      */
-    public static function filterBoolean($b): ?bool
+    public static function filterBoolean(mixed $b): ?bool
     {
         return filter_var($b, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
     }

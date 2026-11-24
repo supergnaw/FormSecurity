@@ -41,12 +41,11 @@ class FormSecurity
         'email' => "filterEmail",
         'htmlenc' => "filterHtmlEnc",
     ];
+
     /**
      * Sanitizes `$_GET` based on provided data type filters
      *
      * @param array $filters
-     *       can be: bool, float, hexint, int, octint, ipv4, ipv6, mac, date, time,
-     *               timestamp, string, alnum, url, email, htmlenc, raw
      * @return array
      */
     public static function sanitizeGet(array $filters = []): array
@@ -62,8 +61,6 @@ class FormSecurity
      * Sanitizes `$_POST` based on provided data type filters
      *
      * @param array $filters
-     *       can be: bool, float, hexint, int, octint, ipv4, ipv6, mac, date, time,
-     *               timestamp, string, alnum, url, email, htmlenc, raw
      * @return array
      */
     public static function sanitizePost(array $filters = []): array
@@ -77,8 +74,6 @@ class FormSecurity
      * Sanitizes `$_COOKIE` based on provided data type filters
      *
      * @param array $filters
-     *       can be: bool, float, hexint, int, octint, ipv4, ipv6, mac, date, time,
-     *               timestamp, string, alnum, url, email, htmlenc, raw
      * @return array
      */
     public static function sanitizeCookie(array $filters = []): array
@@ -92,8 +87,6 @@ class FormSecurity
      * Sanitizes `$_SERVER` based on provided data type filters
      *
      * @param array $filters
-     *       can be: bool, float, hexint, int, octint, ipv4, ipv6, mac, date, time,
-     *               timestamp, string, alnum, url, email, htmlenc, raw
      * @return array
      */
     public static function sanitizeServer(array $filters = []): array
@@ -107,8 +100,6 @@ class FormSecurity
      * Sanitizes `$_ENV` based on provided data type filters
      *
      * @param array $filters
-     *       can be: bool, float, hexint, int, octint, ipv4, ipv6, mac, date, time,
-     *               timestamp, string, alnum, url, email, htmlenc, raw
      * @return array
      */
     public static function sanitizeEnv(array $filters = []): array
@@ -122,14 +113,16 @@ class FormSecurity
     {
         $output = [];
 
-        foreach ($schema as $var => $filter) {
-            $filter = trim(strtolower($filter));
+        foreach ($input as $key => $val) {
+            if (!array_key_exists($key, $schema)) continue;
 
-            if (!isset(self::FILTERS[$filter])) throw new InvalidArgumentException("Unknown filter type '$filter'");
+            $filter = trim(strtolower($schema[$key]));
+
+            if (!isset(self::FILTERS[$filter])) continue;
 
             $method = self::FILTERS[$filter];
 
-            $output[$var] = self::$method($input[$var]);
+            $output[$key] = self::$method($val);
         }
 
         return $output;

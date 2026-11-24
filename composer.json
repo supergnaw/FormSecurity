@@ -8,7 +8,5 @@
       "Supergnaw\\FormSecurity\\": "src/"
     }
   },
-  "require": {
-    "ext-fileinfo": "*"
-  }
+  "require": {}
 }
